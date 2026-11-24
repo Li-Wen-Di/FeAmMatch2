@@ -37,7 +37,7 @@ plan = PlanMatching[task];
 result = RunMatching[task, "/absolute/path/to/new-run", <||>];
 ```
 
-The supplied Green basis determines the planned off-shell channels. It must cover the relevant operators for the model. See [input format](docs/INPUTS.md), [physical conventions](docs/PHYSICS_CONVENTIONS.md), and the [Chinese implementation appendix](docs/APPENDIX.zh-CN.md).
+The supplied Green basis determines the planned off-shell channels. It must cover the relevant operators for the model. See the [input format](docs/INPUTS.md) and [physical conventions](docs/PHYSICS_CONVENTIONS.md).
 
 ## Citation and licenses
 
