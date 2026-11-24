@@ -1,0 +1,19 @@
+(* Independent user Green action. Coefficient names are deliberately not alpha*. *)
+M$ModelName = "UserScalarGreen";
+M$ClassesDescription = {
+ S[1] == {ClassName -> phi, SelfConjugate -> True, Mass -> {m,1}, Width -> 0, FullName -> "light"}
+};
+M$Parameters = {
+ m == {ParameterType -> External, ComplexParameter -> False, Value -> 1},
+ greenZ == {ParameterType -> External, ComplexParameter -> False, Value -> 1},
+ greenMass2 == {ParameterType -> External, ComplexParameter -> False, Value -> 1},
+ greenQuartic == {ParameterType -> External, ComplexParameter -> False, Value -> 1/10},
+ greenSix == {ParameterType -> External, ComplexParameter -> False, Value -> 1/10000},
+ greenBox4 == {ParameterType -> External, ComplexParameter -> False, Value -> 1/10000},
+ greenBox2 == {ParameterType -> External, ComplexParameter -> False, Value -> 1/10000}
+};
+FM2$WilsonCoefficients = {greenMass2,greenZ,greenBox2,greenQuartic,greenBox4,greenSix};
+Ltot := Block[{mu,nu},greenZ del[phi,mu]^2/2-greenMass2 phi^2/2
+ -greenQuartic phi^4/24-greenSix phi^6/720
+ -greenBox4 phi^3 del[del[phi,mu],mu]/24
+ -greenBox2 del[del[phi,mu],mu] del[del[phi,nu],nu]/2];

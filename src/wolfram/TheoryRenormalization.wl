@@ -1,0 +1,29 @@
+(* Real scalar UV counterterms and their classical heavy-field pullback. *)
+ClearAll[theoryUVActionCounterterms,treeActionCounterterms];
+theoryUVActionCounterterms[task_Association]:=Catch[Module[
+ {uv=task["UV"],fields,potential,eps=modelSymbol["eps"],poles,c1,c2,mu=Unique["uvCountertermLorentz"],heavy,zero,linear},
+ fields=uv["FieldSymbols"];potential=-Total[(#["Coefficient"]Times@@#["Fields"])&/@Select[uv["Terms"],#["DerivativeOrder"]===0&]];
+ poles=ScalarUVPoles[potential,fields,eps];If[FailureQ[poles],Throw[poles,"FM2TheoryStage"]];
+ c1=-poles["PotentialOneLoop"];c2=-poles["PotentialTwoLoop"]+Sum[poles["KineticTwoLoop"][[i,j]]ScalarJet[fields[[i]],{mu}]ScalarJet[fields[[j]],{mu}]/2,{i,Length[fields]},{j,Length[fields]}];
+ If[Lookup[task["Request"],"Tadpole","MSbar"]==="heavy_tadpole_free",
+  heavy=#["Symbol"]&/@Select[uv["Fields"],#["Role"]==="heavy"&];zero=Thread[fields->0];
+  linear=Total[Table[(D[c1,f]/.zero)f,{f,heavy}]];c1=Expand[c1-linear]];
+ <|"OneLoop"->Expand[c1],"TwoLoop"->Expand[c2],"UniversalUVPoles"->poles,"TadpoleConvention"->Lookup[task["Request"],"Tadpole","MSbar"]|>
+],"FM2TheoryStage"];
+treeActionCounterterms[task_Association,dimension_Integer,uvCounterterms_:Automatic]:=Catch[Module[
+ {uv=task["UV"],fields,heavy,light,masses,tree,ct,c1,c2,force,curvature,potential,h0,h1,next,mu,pullback1,pullback2},
+ fields=uv["FieldSymbols"];heavy=#["Symbol"]&/@Select[uv["Fields"],#["Role"]==="heavy"&];light=Complement[fields,heavy];
+ masses=Association[Table[f["Symbol"]->f["Mass"],{f,uv["Fields"]}]];
+ tree=classicalHeavyAction[uv,dimension];If[FailureQ[tree],Throw[tree,"FM2TheoryStage"]];h0=tree["HeavySolution"];
+ ct=If[uvCounterterms===Automatic,theoryUVActionCounterterms[task],uvCounterterms];
+ If[FailureQ[ct],Throw[ct,"FM2TheoryStage"]];{c1,c2}=Lookup[ct,{"OneLoop","TwoLoop"}];
+ potential=-Total[(#["Coefficient"]Times@@#["Fields"])&/@Select[uv["Terms"],#["DerivativeOrder"]===0&]];
+ force=Table[scalarJetDimensionTruncate[SubstituteScalarFields[D[c1,f],h0,fields,dimension],light,dimension],{f,heavy}];
+ curvature=Table[scalarJetDimensionTruncate[SubstituteScalarFields[D[potential,f,g],h0,fields,dimension]-If[f===g,masses[f]^2,0],light,dimension],{f,heavy},{g,heavy}];h1=ConstantArray[0,Length[heavy]];
+ Do[mu=Unique["inverseHeavyKernel"];next=Table[scalarActionTheory[<|"FieldSymbols"->light|>,scalarJetDimensionTruncate[(force[[i]]-TotalScalarDerivative[TotalScalarDerivative[h1[[i]],mu,light],mu,light]-Sum[curvature[[i,j]]h1[[j]],{j,Length[heavy]}])/masses[heavy[[i]]]^2,light,dimension]]["Lagrangian"],{i,Length[heavy]}];
+  If[next===h1,Break[]];h1=next,{dimension+1}];
+ pullback1=scalarJetDimensionTruncate[SubstituteScalarFields[c1,h0,fields,dimension],light,dimension];
+ pullback2=scalarJetDimensionTruncate[SubstituteScalarFields[c2,h0,fields,dimension]+Total[force h1]/2,light,dimension];
+ pullback1=pullback1/.(Reverse/@task["LightFieldMap"]);pullback2=pullback2/.(Reverse/@task["LightFieldMap"]);
+ <|"OneLoop"->pullback1,"TwoLoop"->pullback2,"HeavyTree"->h0,"HeavyFirstCorrection"->Thread[heavy->h1],"UV"->ct,"Dimension"->dimension|>
+],"FM2TheoryStage"];

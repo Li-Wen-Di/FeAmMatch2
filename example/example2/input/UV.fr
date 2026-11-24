@@ -1,0 +1,15 @@
+M$ModelName = "PaperUserUV";
+M$ClassesDescription = {
+ S[1] == {ClassName -> H, SelfConjugate -> True, Mass -> {M,1000}, Width -> 0, FullName -> "heavy"},
+ S[2] == {ClassName -> phi, SelfConjugate -> True, Mass -> {m,1}, Width -> 0, FullName -> "light"}
+};
+M$Parameters = {
+ M == {ParameterType -> External, ComplexParameter -> False, Value -> 1000},
+ m == {ParameterType -> External, ComplexParameter -> False, Value -> 1},
+ lp == {ParameterType -> External, ComplexParameter -> False, Value -> 1/10},
+ lh == {ParameterType -> External, ComplexParameter -> False, Value -> 1/5},
+ g == {ParameterType -> External, ComplexParameter -> False, Value -> 3/10},
+ k == {ParameterType -> External, ComplexParameter -> False, Value -> 2}
+};
+Ltot := Block[{mu}, del[H,mu]^2/2+del[phi,mu]^2/2
+ -M^2 H^2/2-m^2 phi^2/2-lp phi^4/24-lh H^4/24-g H^2 phi^2/4-k H^3/6];

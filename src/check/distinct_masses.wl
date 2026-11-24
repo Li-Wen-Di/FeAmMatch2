@@ -1,0 +1,36 @@
+$HistoryLength=0;
+root=Environment["FM2_ROOT"];If[!StringQ[root],root=DirectoryName[DirectoryName[DirectoryName[$InputFileName]]]];
+out=Environment["FM2_OUTPUT"];If[!StringQ[out]||out==="",Print["Set FM2_OUTPUT to a new validation directory."];Exit[2]];
+Get[root<>"/src/wolfram/FeAmMatch2.wl"];
+configPath=Environment["FM2_TOOLCHAIN"];If[!StringQ[configPath],configPath=root<>"/config/toolchain.local.json"];
+cfg=Join[FeAmMatch2`CheckToolchain[Import[configPath,"RawJSON"],"Probe"->False]["config"],<|"WorkingDirectory"->out<>"/form","RetainAssetCopies"->False|>];
+uv=LoadUVModel[root<>"/src/check/fixtures/two-light-portal/UV.wl"];eft=LoadEFTModel[root<>"/src/check/fixtures/two-light-portal/EFTGreen.wl"];
+{x,y}=eft["FieldSymbols"];{ux,uy}=Lookup[Select[uv["Fields"],#["Role"]==="light"&],"Symbol"];um=SelectFirst[uv["Fields"],#["Symbol"]===ux&]["Mass"];
+uf=uv["Fields"]/.a_Association/;MemberQ[{ux,uy},Lookup[a,"Symbol",None]]:>Join[a,<|"Mass"->If[a["Symbol"]===ux,massA,massB]|>];
+ef=eft["Fields"]/.a_Association:>Join[a,<|"Mass"->If[a["Symbol"]===x,massA,massB]|>];
+pars=<|massA-><|"Dimension"->1,"Value"->2|>,massB-><|"Dimension"->1,"Value"->3|>|>;
+uv=LoadUVModel[Join[uv,<|"Fields"->uf,"Parameters"->Join[uv["Parameters"],pars],"Lagrangian"->uv["Lagrangian"]-(massA^2-um^2)ux^2/2-(massB^2-um^2)uy^2/2|>]];
+eft=LoadEFTModel[Join[eft,<|"Fields"->ef,"Parameters"->Join[eft["Parameters"],pars]|>]];
+task=CreateMatchingTask[uv,eft,<|"Loops"->1|>];If[FailureQ[task],Print[task//FullForm];Exit[1]];
+wc=eft["WilsonCoefficients"];rules=Table[c->Switch[SymbolName[c],"mx2",massA^2,"my2",massB^2,"zx"|"zy",1,"lx",testU,"lxy",testV,"ly",testW,_,0],{c,wc}];
+directions=Table[If[MemberQ[{"mx2","my2","lx","lxy","ly","c60","c61","c62","c63"},SymbolName[c]],c->Symbol["FM2MassDirection`"<>SymbolName[c]],Nothing],{c,wc}];
+procs=Select[PlanMatching[task]["tasks"],#["loops"]===1&];
+r=FeAmMatch2`Private`diagramEFTCounterterms[task,eft,rules,procs,out<>"/local",Join[cfg,<|"MaxCouplingWeight"->2,"PoleDirections"->directions|>]];
+If[FailureQ[r],Print[r//FullForm];Exit[1]];
+e=FeAmMatch2`Model`eps;v=-((eft["Lagrangian"]/.rules)/.ScalarJet[_,_]->0);
+dv=-Total[MapThread[#1 D[eft["Lagrangian"],#2]&,{Last/@directions,First/@directions}]]/.ScalarJet[_,_]->0;
+potential=v+massDirectionMarker dv;
+ct=Expand[Tr[Table[D[potential,f,g],{f,{x,y}},{g,{x,y}}].Table[D[potential,f,g],{f,{x,y}},{g,{x,y}}]]/(4e)];
+bc=FeAmMatch2`Private`actionTheoryChannels[eft,Coefficient[ct,massDirectionMarker,0],r["Channels"]];
+dc=FeAmMatch2`Private`actionTheoryChannels[eft,Coefficient[ct,massDirectionMarker,1],r["DirectionChannels"]];
+res=Factor/@Flatten[Table[{r["Channels"][k]["Expression"]-bc[k]["Expression"],r["DirectionChannels"][k]["Expression"]-dc[k]["Expression"]},{k,Keys[bc]}]];
+checks=<|"distinct_reference_light_masses"->(Length[DeleteDuplicates[Lookup[eft["Fields"],"Mass"]]]===2),"all_potential_base_and_direction_poles"->AllTrue[res,#===0&]|>;
+mix=EvaluateHardAmplitude[Den[testQ,massA,0] Den[testQ,massB,0] SP[testQ,testP]^2,{testQ},{testP},{massA,massB},{},2,cfg];
+If[FailureQ[mix],Print[mix//FullForm];Exit[1]];
+mixPole=LaurentVacuum[mix["Expression"],e,testScale,-1,cfg];
+If[FailureQ[mixPole],Print[mixPole//FullForm];Exit[1]];
+AssociateTo[checks,"mixed_mass_partial_fractions_before_tensor"->
+  (mix["Stages"]["PartialFractions"]["Stage"]==="vacuum_partial_fractions"&&
+   Factor[mixPole["Expression"]-SP[testP,testP](massA^2+massB^2)/(4e)]===0)];
+Export[out<>"/report.json",<|"passed"->And@@Values[checks],"checks"->checks,"scope"->"Two distinct symbolic light masses and independent potential coefficient directions, checked against the potential Hessian. Derivative directions independently checked in the separate explicit-diagram test."|>,"RawJSON"];
+Print[checks];Exit[If[And@@Values[checks],0,1]];
