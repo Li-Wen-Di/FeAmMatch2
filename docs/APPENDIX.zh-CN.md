@@ -1,5 +1,7 @@
 # 附录　FeAmMatch2 的图解两圈匹配实现
 
+程序源码、安装说明和两个论文算例可从公开仓库获取。[FeAmMatch2 GitHub 仓库](https://github.com/Li-Wen-Di/FeAmMatch2)
+
 ## A.1　输入与约定
 
 程序读取独立的 UV 拉氏量和 EFT Green 基拉氏量。输入文件提供显式实标量、质量、重轻场标记及各局域算符的归一化，EFT 文件另列出独立待定 Wilson 系数。计算沿用论文的 Minkowski 度规、$d=4-2\epsilon$ 和 MSbar 测度。展开参数 $h=1/(16\pi^2)$ 用于记录总圈阶。本文的两个标量算例均保留非零参考轻质量，按单重阈值和有序形式维六截断。
